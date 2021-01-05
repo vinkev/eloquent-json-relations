@@ -34,8 +34,8 @@ class BelongsToJson extends BelongsTo
         if (static::$constraints) {
             $table = $this->related->getTable();
 
-            $column =  is_subclass_of($this->related, \Illuminate\Database\Eloquent\Model::class) ? $table . '.' . $this->ownerKey : $this->ownerKey;
-            
+            $column = is_subclass_of($this->related, \Illuminate\Database\Eloquent\Model::class) ? $table . '.' . $this->ownerKey : $this->ownerKey;
+
             $this->query->whereIn($column, $this->getForeignKeys());
         }
     }
@@ -62,9 +62,9 @@ class BelongsToJson extends BelongsTo
     /**
      * Match the eagerly loaded results to their parents.
      *
-     * @param array  $models
+     * @param array                                    $models
      * @param \Illuminate\Database\Eloquent\Collection $results
-     * @param string $relation
+     * @param string                                   $relation
      * @return array
      */
     public function match(array $models, Collection $results, $relation)
@@ -112,7 +112,7 @@ class BelongsToJson extends BelongsTo
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param \Illuminate\Database\Eloquent\Builder $parentQuery
-     * @param array|mixed $columns
+     * @param array|mixed                           $columns
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*'])
@@ -134,16 +134,16 @@ class BelongsToJson extends BelongsTo
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param \Illuminate\Database\Eloquent\Builder $parentQuery
-     * @param array|mixed $columns
+     * @param array|mixed                           $columns
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function getRelationExistenceQueryForSelfRelation(Builder $query, Builder $parentQuery, $columns = ['*'])
     {
-        $query->from($query->getModel()->getTable().' as '.$hash = $this->getRelationCountHash());
+        $query->from($query->getModel()->getTable() . ' as ' . $hash = $this->getRelationCountHash());
 
         $query->getModel()->setTable($hash);
 
-        $ownerKey = $this->relationExistenceQueryOwnerKey($query, $hash.'.'.$this->ownerKey);
+        $ownerKey = $this->relationExistenceQueryOwnerKey($query, $hash . '.' . $this->ownerKey);
 
         return $query->select($columns)->whereJsonContains(
             $this->getQualifiedPath(),
@@ -155,7 +155,7 @@ class BelongsToJson extends BelongsTo
      * Get the owner key for the relationship query.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $ownerKey
+     * @param string                                $ownerKey
      * @return string
      */
     protected function relationExistenceQueryOwnerKey(Builder $query, $ownerKey)
@@ -200,7 +200,7 @@ class BelongsToJson extends BelongsTo
     {
         $model = $model ?: $this->child;
 
-        $keys = (array) $model->{$this->foreignKey};
+        $keys = (array)$model->{$this->foreignKey};
 
         return array_filter($keys, function ($key) {
             return $key !== null;
