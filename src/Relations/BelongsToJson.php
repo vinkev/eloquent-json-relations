@@ -34,11 +34,26 @@ class BelongsToJson extends BelongsTo
         if (static::$constraints) {
             $table = $this->related->getTable();
 
-            $column = !is_subclass_of($this->related, \Jenssegers\Mongodb\Eloquent\Model::class) ? $table . '.' . $this->ownerKey : $this->ownerKey;
+            $column = !$this->isRelationInMongo($this->related) ? $table . '.' . $this->ownerKey : $this->ownerKey;
 
             $this->query->whereIn($column, $this->getForeignKeys());
         }
     }
+
+    /**
+     * Set the constraints for an eager load of the relation.
+     *
+     * @param array $models
+     */
+    public function addEagerConstraints(array $models)
+    {
+        $key = !$this->isRelationInMongo($this->related) ? $this->related->getTable() . '.' . $this->ownerKey : $this->ownerKey;
+
+        $whereIn = $this->whereInMethod($this->related, $this->ownerKey);
+
+        $this->query->{$whereIn}($key, $this->getEagerModelKeys($models));
+    }
+
 
     /**
      * Gather the keys from an array of related models.
@@ -62,9 +77,9 @@ class BelongsToJson extends BelongsTo
     /**
      * Match the eagerly loaded results to their parents.
      *
-     * @param array  $models
+     * @param array                                    $models
      * @param \Illuminate\Database\Eloquent\Collection $results
-     * @param string $relation
+     * @param string                                   $relation
      * @return array
      */
     public function match(array $models, Collection $results, $relation)
@@ -112,7 +127,7 @@ class BelongsToJson extends BelongsTo
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param \Illuminate\Database\Eloquent\Builder $parentQuery
-     * @param array|mixed $columns
+     * @param array|mixed                           $columns
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*'])
@@ -134,16 +149,16 @@ class BelongsToJson extends BelongsTo
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param \Illuminate\Database\Eloquent\Builder $parentQuery
-     * @param array|mixed $columns
+     * @param array|mixed                           $columns
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function getRelationExistenceQueryForSelfRelation(Builder $query, Builder $parentQuery, $columns = ['*'])
     {
-        $query->from($query->getModel()->getTable().' as '.$hash = $this->getRelationCountHash());
+        $query->from($query->getModel()->getTable() . ' as ' . $hash = $this->getRelationCountHash());
 
         $query->getModel()->setTable($hash);
 
-        $ownerKey = $this->relationExistenceQueryOwnerKey($query, $hash.'.'.$this->ownerKey);
+        $ownerKey = $this->relationExistenceQueryOwnerKey($query, $hash . '.' . $this->ownerKey);
 
         return $query->select($columns)->whereJsonContains(
             $this->getQualifiedPath(),
@@ -155,7 +170,7 @@ class BelongsToJson extends BelongsTo
      * Get the owner key for the relationship query.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $ownerKey
+     * @param string                                $ownerKey
      * @return string
      */
     protected function relationExistenceQueryOwnerKey(Builder $query, $ownerKey)
@@ -200,10 +215,19 @@ class BelongsToJson extends BelongsTo
     {
         $model = $model ?: $this->child;
 
-        $keys = (array) $model->{$this->foreignKey};
+        $keys = (array)$model->{$this->foreignKey};
 
         return array_filter($keys, function ($key) {
             return $key !== null;
         });
+    }
+
+    /**
+     * @param $related
+     * @return bool
+     */
+    protected function isRelationInMongo($related)
+    {
+        return is_subclass_of($related, \Jenssegers\Mongodb\Eloquent\Model::class);
     }
 }
