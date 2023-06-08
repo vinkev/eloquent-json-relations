@@ -7,10 +7,16 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection as BaseCollection;
+use Staudenmeir\EloquentHasManyDeepContracts\Interfaces\ConcatenableRelation;
+use Staudenmeir\EloquentJsonRelations\Relations\Traits\Concatenation\IsConcatenableBelongsToJsonRelation;
+use Staudenmeir\EloquentJsonRelations\Relations\Traits\IsJsonRelation;
 
-class BelongsToJson extends BelongsTo
+class BelongsToJson extends BelongsTo implements ConcatenableRelation
 {
-    use InteractsWithPivotRecords, IsJsonRelation;
+    use InteractsWithPivotRecords;
+    use IsConcatenableBelongsToJsonRelation;
+    use IsJsonRelation;
 
     /**
      * Get the results of the relationship.
@@ -22,6 +28,27 @@ class BelongsToJson extends BelongsTo
         return !empty($this->getForeignKeys())
             ? $this->get()
             : $this->related->newCollection();
+    }
+
+    /**
+     * Execute the query as a "select" statement.
+     *
+     * @param array $columns
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function get($columns = ['*'])
+    {
+        $models = parent::get($columns);
+
+        if ($this->key && !empty($this->parent->{$this->path})) {
+            $this->hydratePivotRelation(
+                $models,
+                $this->parent,
+                fn (Model $model, Model $parent) => $parent->{$this->path}
+            );
+        }
+
+        return $models;
     }
 
     /**
@@ -98,7 +125,11 @@ class BelongsToJson extends BelongsTo
             $model->setRelation($relation, $collection = $this->related->newCollection($matches));
 
             if ($this->key) {
-                $this->hydratePivotRelation($collection, $model);
+                $this->hydratePivotRelation(
+                    $collection,
+                    $model,
+                    fn (Model $model, Model $parent) => $parent->{$this->path}
+                );
             }
         }
 
@@ -136,12 +167,17 @@ class BelongsToJson extends BelongsTo
             return $this->getRelationExistenceQueryForSelfRelation($query, $parentQuery, $columns);
         }
 
-        $ownerKey = $this->relationExistenceQueryOwnerKey($query, $this->ownerKey);
+        [$sql, $bindings] = $this->relationExistenceQueryOwnerKey($query, $this->ownerKey);
 
-        return $query->select($columns)->whereJsonContains(
+        $query->addBinding($bindings);
+
+        $this->whereJsonContainsOrMemberOf(
+            $query,
             $this->getQualifiedPath(),
-            $query->getQuery()->connection->raw($ownerKey)
+            $query->getQuery()->connection->raw($sql)
         );
+
+        return $query->select($columns);
     }
 
     /**
@@ -158,32 +194,52 @@ class BelongsToJson extends BelongsTo
 
         $query->getModel()->setTable($hash);
 
-        $ownerKey = $this->relationExistenceQueryOwnerKey($query, $hash . '.' . $this->ownerKey);
+        [$sql, $bindings] = $this->relationExistenceQueryOwnerKey($query, $hash.'.'.$this->ownerKey);
 
-        return $query->select($columns)->whereJsonContains(
+        $query->addBinding($bindings);
+
+        $this->whereJsonContainsOrMemberOf(
+            $query,
             $this->getQualifiedPath(),
-            $query->getQuery()->connection->raw($ownerKey)
+            $query->getQuery()->connection->raw($sql)
         );
+
+        return $query->select($columns);
     }
 
     /**
      * Get the owner key for the relationship query.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string                                $ownerKey
-     * @return string
+     * @param string $ownerKey
+     * @return array
      */
-    protected function relationExistenceQueryOwnerKey(Builder $query, $ownerKey)
+    protected function relationExistenceQueryOwnerKey(Builder $query, string $ownerKey): array
     {
         $ownerKey = $query->qualifyColumn($ownerKey);
 
-        if (!$this->key) {
-            return $this->getJsonGrammar($query)->compileJsonArray($ownerKey);
+        $grammar = $this->getJsonGrammar($query);
+        $connection = $query->getConnection();
+
+        if ($grammar->supportsMemberOf($connection)) {
+            $sql = $grammar->wrap($ownerKey);
+
+            $bindings = [];
+        } else {
+            if ($this->key) {
+                $keys = explode('->', $this->key);
+
+                $sql = $this->getJsonGrammar($query)->compileJsonObject($ownerKey, count($keys));
+
+                $bindings = $keys;
+            } else {
+                $sql = $this->getJsonGrammar($query)->compileJsonArray($ownerKey);
+
+                $bindings = [];
+            }
         }
 
-        $query->addBinding($keys = explode('->', $this->key));
-
-        return $this->getJsonGrammar($query)->compileJsonObject($ownerKey, count($keys));
+        return [$sql, $bindings];
     }
 
     /**
@@ -191,13 +247,14 @@ class BelongsToJson extends BelongsTo
      *
      * @param \Illuminate\Database\Eloquent\Model $model
      * @param \Illuminate\Database\Eloquent\Model $parent
+     * @param array $records
      * @return array
      */
-    protected function pivotAttributes(Model $model, Model $parent)
+    public function pivotAttributes(Model $model, Model $parent, array $records)
     {
         $key = str_replace('->', '.', $this->key);
 
-        $record = collect($parent->{$this->path})
+        $record = (new BaseCollection($records))
             ->filter(function ($value) use ($key, $model) {
                 return Arr::get($value, $key) == $model->{$this->ownerKey};
             })->first();
@@ -215,11 +272,7 @@ class BelongsToJson extends BelongsTo
     {
         $model = $model ?: $this->child;
 
-        $keys = (array)$model->{$this->foreignKey};
-
-        return array_filter($keys, function ($key) {
-            return $key !== null;
-        });
+        return (new BaseCollection($model->{$this->foreignKey}))->filter(fn ($key) => $key !== null)->all();
     }
 
     /**

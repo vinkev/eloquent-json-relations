@@ -8,11 +8,21 @@ jobs:
 
     strategy:
       matrix:
-        php: [8.0, 7.4, 7.3, 7.2]
-        database: [mysql, pgsql, sqlite, sqlsrv]
+        php: [8.2, 8.1]
+        database: [mysql, mariadb, pgsql, sqlite, sqlsrv]
         release: [stable, lowest]
         include:
-          - php: 7.4
+          - database: mysql
+            pdo: mysql
+          - database: mariadb
+            pdo: mysql
+          - database: pgsql
+            pdo: pgsql
+          - database: sqlite
+            pdo: sqlite
+          - database: sqlsrv
+            pdo: sqlsrv
+          - php: 8.2
             release: stable
             coverage: xdebug
           - database: sqlsrv
@@ -20,7 +30,14 @@ jobs:
 
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:latest
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        ports:
+          - 3306
+      mariadb:
+        image: mariadb:latest
         env:
           MYSQL_ROOT_PASSWORD: password
           MYSQL_DATABASE: test
@@ -46,8 +63,10 @@ jobs:
           - 1433
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - uses: actions/cache@v3
         with:
           path: ~/.cache/composer/files
           key: php-${{ matrix.php }}-composer-${{ hashFiles('**/composer.json') }}
@@ -55,11 +74,11 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           tools: pecl
-          extensions: bcmath, ctype, json, mbstring, openssl, pdo, pdo_${{ matrix.database }}${{ matrix.pdo_suffix }}, tokenizer, xml
+          extensions: bcmath, ctype, json, mbstring, openssl, pdo, pdo_${{ matrix.pdo }}, tokenizer, xml
           coverage: ${{ matrix.coverage }}
       - run: docker exec sqlsrv /opt/mssql-tools/bin/sqlcmd -S 127.0.0.1 -U sa -P Password! -Q "create database [test]"
         if: matrix.database == 'sqlsrv'
-      - run: composer update --no-interaction --no-progress --no-suggest --prefer-dist --prefer-${{ matrix.release }}
+      - run: composer update --no-interaction --no-progress --prefer-dist --prefer-${{ matrix.release }}
       - run: cp tests/config/database.ci.php tests/config/database.php
       - run: |
           PHPUNIT_FLAGS=$([ "${{ matrix.coverage }}" == "xdebug" ] && echo "--coverage-clover=coverage.xml" || echo "")
@@ -67,9 +86,8 @@ jobs:
         env:
           DATABASE: ${{ matrix.database }}
           MYSQL_PORT: ${{ job.services.mysql.ports[3306] }}
+          MARIADB_PORT: ${{ job.services.mariadb.ports[3306] }}
           PGSQL_PORT: ${{ job.services.pgsql.ports[5432] }}
           SQLSRV_PORT: ${{ job.services.sqlsrv.ports[1433] }}
-      - run: |
-          wget -q https://scrutinizer-ci.com/ocular.phar
-          php ocular.phar code-coverage:upload --format=php-clover coverage.xml
+      - run: php tests/coverage/scrutinizer.php
         if: matrix.coverage == 'xdebug'

@@ -1,9 +1,5 @@
 /.idea
-/.vagrant
+/.phpunit.cache
 /vendor
-.phpunit.result.cache
-after.sh
-aliases
+.php-cs-fixer.cache
 composer.lock
-Homestead.yaml
-Vagrantfile

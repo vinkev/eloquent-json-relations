@@ -6,6 +6,7 @@ use Illuminate\Database\Capsule\Manager as DB;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Models\Post;
 use Tests\Models\Role;
 use Tests\Models\User;
@@ -21,22 +22,24 @@ class HasManyJsonTest extends TestCase
         }
     }
 
-    public function testLazyLoading()
+    #[DataProvider(methodName: 'idRelationProvider')]
+    public function testLazyLoading(string $relation)
     {
-        $users = Role::first()->users;
+        $users = Role::find(1)->$relation;
 
-        $this->assertEquals([1], $users->pluck('id')->all());
+        $this->assertEquals([21], $users->pluck('id')->all());
     }
 
-    public function testLazyLoadingWithObjects()
+    #[DataProvider(methodName: 'objectRelationProvider')]
+    public function testLazyLoadingWithObjects(string $relation)
     {
         if (DB::connection()->getDriverName() === 'sqlsrv') {
             $this->markTestSkipped();
         }
 
-        $users = Role::first()->users2;
+        $users = Role::find(1)->$relation;
 
-        $this->assertEquals([1], $users->pluck('id')->all());
+        $this->assertEquals([21], $users->pluck('id')->all());
         $pivot = $users[0]->pivot;
         $this->assertInstanceOf(Pivot::class, $pivot);
         $this->assertTrue($pivot->exists);
@@ -47,7 +50,7 @@ class HasManyJsonTest extends TestCase
     {
         DB::enableQueryLog();
 
-        $roles = (new Role)->users;
+        $roles = (new Role())->users;
 
         $this->assertInstanceOf(Collection::class, $roles);
         $this->assertEmpty(DB::getQueryLog());
@@ -59,77 +62,83 @@ class HasManyJsonTest extends TestCase
             $this->markTestSkipped();
         }
 
-        $user = Role::first()->users2()->first();
+        $user = Role::find(1)->usersWithObjects()->first();
 
-        $this->assertEquals(1, $user->id);
+        $this->assertEquals(21, $user->id);
         $this->assertInstanceOf(Pivot::class, $user->pivot);
     }
 
-    public function testEagerLoading()
+    #[DataProvider(methodName: 'idRelationProvider')]
+    public function testEagerLoading(string $relation)
     {
-        $roles = Role::with('users')->get();
+        $roles = Role::with($relation)->get();
 
-        $this->assertEquals([1], $roles[0]->users->pluck('id')->all());
-        $this->assertEquals([1, 3], $roles[1]->users->pluck('id')->all());
+        $this->assertEquals([21], $roles[0]->$relation->pluck('id')->all());
+        $this->assertEquals([21, 23], $roles[1]->$relation->pluck('id')->all());
     }
 
-    public function testEagerLoadingWithObjects()
+    #[DataProvider(methodName: 'objectRelationProvider')]
+    public function testEagerLoadingWithObjects(string $relation)
     {
         if (DB::connection()->getDriverName() === 'sqlsrv') {
             $this->markTestSkipped();
         }
 
-        $roles = Role::with('users2')->get();
+        $roles = Role::with($relation)->get();
 
-        $this->assertEquals([1], $roles[0]->users2->pluck('id')->all());
-        $this->assertEquals([1, 3], $roles[1]->users2->pluck('id')->all());
-        $pivot = $roles[0]->users2[0]->pivot;
+        $this->assertEquals([21], $roles[0]->$relation->pluck('id')->all());
+        $this->assertEquals([21, 23], $roles[1]->$relation->pluck('id')->all());
+        $pivot = $roles[0]->$relation[0]->pivot;
         $this->assertInstanceOf(Pivot::class, $pivot);
         $this->assertTrue($pivot->exists);
         $this->assertEquals(['role' => ['active' => true]], $pivot->getAttributes());
-        $this->assertEquals(['role' => ['active' => false]], $roles[1]->users2[0]->pivot->getAttributes());
+        $this->assertEquals(['role' => ['active' => false]], $roles[1]->$relation[0]->pivot->getAttributes());
     }
 
-    public function testLazyEagerLoading()
+    #[DataProvider(methodName: 'idRelationProvider')]
+    public function testLazyEagerLoading(string $relation)
     {
-        $roles = Role::all()->load('users');
+        $roles = Role::all()->load($relation);
 
-        $this->assertEquals([1], $roles[0]->users->pluck('id')->all());
-        $this->assertEquals([1, 3], $roles[1]->users->pluck('id')->all());
+        $this->assertEquals([21], $roles[0]->$relation->pluck('id')->all());
+        $this->assertEquals([21, 23], $roles[1]->$relation->pluck('id')->all());
     }
 
-    public function testLazyEagerLoadingWithObjects()
+    #[DataProvider(methodName: 'objectRelationProvider')]
+    public function testLazyEagerLoadingWithObjects(string $relation)
     {
         if (DB::connection()->getDriverName() === 'sqlsrv') {
             $this->markTestSkipped();
         }
 
-        $roles = Role::all()->load('users2');
+        $roles = Role::all()->load($relation);
 
-        $this->assertEquals([1], $roles[0]->users2->pluck('id')->all());
-        $this->assertEquals([1, 3], $roles[1]->users2->pluck('id')->all());
-        $pivot = $roles[0]->users2[0]->pivot;
+        $this->assertEquals([21], $roles[0]->$relation->pluck('id')->all());
+        $this->assertEquals([21, 23], $roles[1]->$relation->pluck('id')->all());
+        $pivot = $roles[0]->$relation[0]->pivot;
         $this->assertInstanceOf(Pivot::class, $pivot);
         $this->assertTrue($pivot->exists);
         $this->assertEquals(['role' => ['active' => true]], $pivot->getAttributes());
-        $this->assertEquals(['role' => ['active' => false]], $roles[1]->users2[0]->pivot->getAttributes());
+        $this->assertEquals(['role' => ['active' => false]], $roles[1]->$relation[0]->pivot->getAttributes());
     }
 
-    public function testExistenceQuery()
+    #[DataProvider(methodName: 'idRelationProvider')]
+    public function testExistenceQuery(string $relation)
     {
-        $roles = Role::has('users')->get();
+        $roles = Role::has($relation)->get();
 
         $this->assertEquals([1, 2, 3], $roles->pluck('id')->all());
     }
 
-    public function testExistenceQueryWithObjects()
+    #[DataProvider(methodName: 'objectRelationProvider')]
+    public function testExistenceQueryWithObjects(string $relation)
     {
         if (DB::connection()->getDriverName() === 'sqlsrv') {
             $this->markTestSkipped();
         }
 
-        $roles = Role::whereHas('users2', function (Builder $query) {
-            $query->where('id', 1);
+        $roles = Role::whereHas($relation, function (Builder $query) {
+            $query->where('id', 21);
         })->get();
 
         $this->assertEquals([1, 2], $roles->pluck('id')->all());
@@ -139,7 +148,7 @@ class HasManyJsonTest extends TestCase
     {
         $posts = Post::has('recommenders')->get();
 
-        $this->assertEquals([2], $posts->pluck('id')->all());
+        $this->assertEquals([32], $posts->pluck('id')->all());
     }
 
     public function testExistenceQueryForSelfRelationWithObjects()
@@ -150,28 +159,44 @@ class HasManyJsonTest extends TestCase
 
         $posts = Post::has('recommenders2')->get();
 
-        $this->assertEquals([2], $posts->pluck('id')->all());
+        $this->assertEquals([32], $posts->pluck('id')->all());
     }
 
     public function testSave()
     {
-        $user = Role::first()->users()->save(User::find(2));
+        $user = Role::find(1)->users()->save(User::find(22));
 
         $this->assertEquals([1], $user->roles()->pluck('id')->all());
 
-        $user = Role::first()->users()->save(User::find(3));
+        $user = Role::find(1)->users()->save(User::find(23));
 
         $this->assertEquals([1, 2, 3], $user->roles()->pluck('id')->all());
     }
 
     public function testSaveWithObjects()
     {
-        $user = Role::first()->users2()->save(User::find(2));
+        $user = Role::find(1)->usersWithObjects()->save(User::find(22));
 
-        $this->assertEquals([1], $user->roles2()->pluck('id')->all());
+        $this->assertEquals([1], $user->rolesWithObjects()->pluck('id')->all());
 
-        $user = Role::first()->users2()->save(User::find(3));
+        $user = Role::find(1)->usersWithObjects()->save(User::find(23));
 
-        $this->assertEquals([1, 2, 3], $user->roles2()->pluck('id')->all());
+        $this->assertEquals([1, 2, 3], $user->rolesWithObjects()->pluck('id')->all());
+    }
+
+    public static function idRelationProvider(): array
+    {
+        return [
+            ['users'],
+            ['usersInColumn'],
+        ];
+    }
+
+    public static function objectRelationProvider(): array
+    {
+        return [
+            ['usersWithObjects'],
+            ['usersWithObjectsInColumn'],
+        ];
     }
 }

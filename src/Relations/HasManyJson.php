@@ -7,9 +7,14 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection as BaseCollection;
+use Staudenmeir\EloquentHasManyDeepContracts\Interfaces\ConcatenableRelation;
+use Staudenmeir\EloquentJsonRelations\Relations\Traits\Concatenation\IsConcatenableHasManyJsonRelation;
+use Staudenmeir\EloquentJsonRelations\Relations\Traits\IsJsonRelation;
 
-class HasManyJson extends HasMany
+class HasManyJson extends HasMany implements ConcatenableRelation
 {
+    use IsConcatenableHasManyJsonRelation;
     use IsJsonRelation;
 
     /**
@@ -25,6 +30,27 @@ class HasManyJson extends HasMany
     }
 
     /**
+     * Execute the query as a "select" statement.
+     *
+     * @param array $columns
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function get($columns = ['*'])
+    {
+        $models = parent::get($columns);
+
+        if ($this->key && !is_null($this->parent->{$this->localKey})) {
+            $this->hydratePivotRelation(
+                $models,
+                $this->parent,
+                fn (Model $model) => $model->{$this->getPathName()}
+            );
+        }
+
+        return $models;
+    }
+
+    /**
      * Set the base constraints on the relation query.
      *
      * @return void
@@ -34,11 +60,12 @@ class HasManyJson extends HasMany
         if (static::$constraints) {
             $parentKey = $this->getParentKey();
 
-            if ($this->key) {
-                $parentKey = $this->parentKeyToArray($parentKey);
-            }
-
-            $this->query->whereJsonContains($this->path, $parentKey);
+            $this->whereJsonContainsOrMemberOf(
+                $this->query,
+                $this->path,
+                $parentKey,
+                fn ($parentKey) => $this->parentKeyToArray($parentKey)
+            );
         }
     }
 
@@ -54,11 +81,13 @@ class HasManyJson extends HasMany
 
         $this->query->where(function (Builder $query) use ($parentKeys) {
             foreach ($parentKeys as $parentKey) {
-                if ($this->key) {
-                    $parentKey = $this->parentKeyToArray($parentKey);
-                }
-
-                $query->orWhereJsonContains($this->path, $parentKey);
+                $this->whereJsonContainsOrMemberOf(
+                    $query,
+                    $this->path,
+                    $parentKey,
+                    fn ($parentKey) => $this->parentKeyToArray($parentKey),
+                    'or'
+                );
             }
         });
     }
@@ -83,7 +112,7 @@ class HasManyJson extends HasMany
     /**
      * Match the eagerly loaded results to their many parents.
      *
-     * @param array  $models
+     * @param array $models
      * @param \Illuminate\Database\Eloquent\Collection $results
      * @param string $relation
      * @param string $type
@@ -95,7 +124,11 @@ class HasManyJson extends HasMany
 
         if ($this->key) {
             foreach ($models as $model) {
-                $this->hydratePivotRelation($model->$relation, $model);
+                $this->hydratePivotRelation(
+                    $model->$relation,
+                    $model,
+                    fn (Model $model) => $model->{$this->getPathName()}
+                );
             }
         }
 
@@ -153,12 +186,17 @@ class HasManyJson extends HasMany
             return $this->getRelationExistenceQueryForSelfRelation($query, $parentQuery, $columns);
         }
 
-        $parentKey = $this->relationExistenceQueryParentKey($query);
+        [$sql, $bindings] = $this->relationExistenceQueryParentKey($query);
 
-        return $query->select($columns)->whereJsonContains(
+        $query->addBinding($bindings);
+
+        $this->whereJsonContainsOrMemberOf(
+            $query,
             $this->getQualifiedPath(),
-            $query->getQuery()->connection->raw($parentKey)
+            $query->getQuery()->connection->raw($sql)
         );
+
+        return $query->select($columns);
     }
 
     /**
@@ -171,35 +209,55 @@ class HasManyJson extends HasMany
      */
     public function getRelationExistenceQueryForSelfRelation(Builder $query, Builder $parentQuery, $columns = ['*'])
     {
-        $query->from($query->getModel()->getTable().' as '.$hash = $this->getRelationCountHash());
+        $query->from($query->getModel()->getTable() . ' as ' . $hash = $this->getRelationCountHash());
 
         $query->getModel()->setTable($hash);
 
-        $parentKey = $this->relationExistenceQueryParentKey($query);
+        [$sql, $bindings] = $this->relationExistenceQueryParentKey($query);
 
-        return $query->select($columns)->whereJsonContains(
-            $hash.'.'.$this->getPathName(),
-            $query->getQuery()->connection->raw($parentKey)
+        $query->addBinding($bindings);
+
+        $this->whereJsonContainsOrMemberOf(
+            $query,
+            $hash . '.' . $this->getPathName(),
+            $query->getQuery()->connection->raw($sql)
         );
+
+        return $query->select($columns);
     }
 
     /**
      * Get the parent key for the relationship query.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return string
+     * @return array
      */
-    protected function relationExistenceQueryParentKey(Builder $query)
+    protected function relationExistenceQueryParentKey(Builder $query): array
     {
         $parentKey = $this->getQualifiedParentKeyName();
 
-        if (!$this->key) {
-            return $this->getJsonGrammar($query)->compileJsonArray($parentKey);
+        $grammar = $this->getJsonGrammar($query);
+        $connection = $query->getConnection();
+
+        if ($grammar->supportsMemberOf($connection)) {
+            $sql = $grammar->wrap($parentKey);
+
+            $bindings = [];
+        } else {
+            if ($this->key) {
+                $keys = explode('->', $this->key);
+
+                $sql = $this->getJsonGrammar($query)->compileJsonObject($parentKey, count($keys));
+
+                $bindings = $keys;
+            } else {
+                $sql = $this->getJsonGrammar($query)->compileJsonArray($parentKey);
+
+                $bindings = [];
+            }
         }
 
-        $query->addBinding($keys = explode('->', $this->key));
-
-        return $this->getJsonGrammar($query)->compileJsonObject($parentKey, count($keys));
+        return [$sql, $bindings];
     }
 
     /**
@@ -207,13 +265,14 @@ class HasManyJson extends HasMany
      *
      * @param \Illuminate\Database\Eloquent\Model $model
      * @param \Illuminate\Database\Eloquent\Model $parent
+     * @param array $records
      * @return array
      */
-    protected function pivotAttributes(Model $model, Model $parent)
+    public function pivotAttributes(Model $model, Model $parent, array $records)
     {
         $key = str_replace('->', '.', $this->key);
 
-        $record = collect($model->{$this->getPathName()})
+        $record = (new BaseCollection($records))
             ->filter(function ($value) use ($key, $parent) {
                 return Arr::get($value, $key) == $parent->{$this->localKey};
             })->first();

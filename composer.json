@@ -9,12 +9,13 @@
         }
     ],
     "require": {
-        "php": "^7.2.5|^8.0",
-        "illuminate/database": "^7.0"
+        "php": "^8.1",
+        "illuminate/database": "^10.0",
+        "staudenmeir/eloquent-has-many-deep-contracts": "^1.1"
     },
     "require-dev": {
-        "laravel/homestead": "^11.0",
-        "phpunit/phpunit": "^8.5|^9.3"
+        "phpunit/phpunit": "^10.1",
+        "staudenmeir/eloquent-has-many-deep": "^1.18"
     },
     "autoload": {
         "psr-4": {
@@ -27,5 +28,5 @@
         }
     },
     "minimum-stability": "dev",
-    "prefer-stable" : true
+    "prefer-stable": true
 }
