@@ -59,9 +59,7 @@ class BelongsToJson extends BelongsTo implements ConcatenableRelation
     public function addConstraints()
     {
         if (static::$constraints) {
-            $table = $this->related->getTable();
-
-            $column = !$this->isRelationInMongo($this->related) ? $table . '.' . $this->ownerKey : $this->ownerKey;
+            $column = $this->isRelationInMongo($this->related) ? $this->related->getTable() . '.' . $this->ownerKey : $this->ownerKey;
 
             $this->query->whereIn($column, $this->getForeignKeys());
         }
@@ -80,7 +78,6 @@ class BelongsToJson extends BelongsTo implements ConcatenableRelation
 
         $this->query->{$whereIn}($key, $this->getEagerModelKeys($models));
     }
-
 
     /**
      * Gather the keys from an array of related models.
@@ -277,6 +274,7 @@ class BelongsToJson extends BelongsTo implements ConcatenableRelation
 
     /**
      * @param $related
+     *
      * @return bool
      */
     protected function isRelationInMongo($related)
