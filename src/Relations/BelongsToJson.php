@@ -281,4 +281,14 @@ class BelongsToJson extends BelongsTo implements ConcatenableRelation
     {
         return is_subclass_of($related, \Jenssegers\Mongodb\Eloquent\Model::class);
     }
+
+    /**
+     * Get the related key for the relationship.
+     *
+     * @return string
+     */
+    public function getRelatedKeyName()
+    {
+        return $this->ownerKey;
+    }
 }

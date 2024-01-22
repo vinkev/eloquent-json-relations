@@ -2,21 +2,11 @@
 
 namespace Tests\Concatenation\BelongsToJson;
 
-use Illuminate\Database\Capsule\Manager as DB;
 use Tests\Models\User;
 use Tests\TestCase;
 
 class FirstPositionTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            $this->markTestSkipped();
-        }
-    }
-
     public function testLazyLoading()
     {
         $permissions = User::find(21)->permissions;
@@ -38,6 +28,15 @@ class FirstPositionTest extends TestCase
         $this->assertEquals([81, 82, 83], $users[0]->permissions->pluck('id')->all());
         $this->assertEquals([], $users[1]->permissions->pluck('id')->all());
         $this->assertEquals([83, 84], $users[2]->permissions->pluck('id')->all());
+    }
+
+    public function testEagerLoadingWithHasOneDeep()
+    {
+        $users = User::with('permission')->get();
+
+        $this->assertEquals(81, $users[0]->permission->id);
+        $this->assertNull($users[1]->permission);
+        $this->assertEquals(83, $users[2]->permission->id);
     }
 
     public function testEagerLoadingWithObjects()
@@ -76,7 +75,7 @@ class FirstPositionTest extends TestCase
 
     public function testExistenceQueryWithObjects()
     {
-        if (DB::connection()->getDriverName() === 'sqlsrv') {
+        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 

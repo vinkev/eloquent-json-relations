@@ -16,15 +16,6 @@ use Tests\Models\UserAsCollection;
 
 class BelongsToJsonTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            $this->markTestSkipped();
-        }
-    }
-
     #[DataProvider(methodName: 'idRelationProvider')]
     public function testLazyLoading(string $relation)
     {
@@ -125,7 +116,7 @@ class BelongsToJsonTest extends TestCase
     #[DataProvider(methodName: 'objectRelationProvider')]
     public function testExistenceQueryWithObjects(string $relation)
     {
-        if (DB::connection()->getDriverName() === 'sqlsrv') {
+        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 
@@ -145,7 +136,7 @@ class BelongsToJsonTest extends TestCase
 
     public function testExistenceQueryForSelfRelationWithObjects()
     {
-        if (DB::connection()->getDriverName() === 'sqlsrv') {
+        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 
@@ -273,6 +264,13 @@ class BelongsToJsonTest extends TestCase
         $keys = $userModel::find(21)->roles()->getForeignKeys();
 
         $this->assertEquals([1, 2], $keys);
+    }
+
+    public function testGetRelatedKeyName()
+    {
+        $relatedKeyName = (new User())->roles()->getRelatedKeyName();
+
+        $this->assertEquals('id', $relatedKeyName);
     }
 
     public static function idRelationProvider(): array

@@ -2,21 +2,11 @@
 
 namespace Tests\Concatenation\HasManyJson;
 
-use Illuminate\Database\Capsule\Manager as DB;
 use Tests\Models\Role;
 use Tests\TestCase;
 
 class FirstPositionTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            $this->markTestSkipped();
-        }
-    }
-
     public function testLazyLoading()
     {
         $countries = Role::find(2)->countries;
@@ -26,7 +16,7 @@ class FirstPositionTest extends TestCase
 
     public function testLazyLoadingWithObjects()
     {
-        if (DB::connection()->getDriverName() === 'sqlsrv') {
+        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 
@@ -46,7 +36,7 @@ class FirstPositionTest extends TestCase
 
     public function testEagerLoadingWithObjects()
     {
-        if (DB::connection()->getDriverName() === 'sqlsrv') {
+        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 
@@ -55,6 +45,15 @@ class FirstPositionTest extends TestCase
         $this->assertEquals([71], $roles[0]->countries2->pluck('id')->all());
         $this->assertEquals([71, 73], $roles[1]->countries2->pluck('id')->all());
         $this->assertEquals([], $roles[3]->countries2->pluck('id')->all());
+    }
+
+    public function testEagerLoadingWithHasOneDeep()
+    {
+        $roles = Role::with('country')->get();
+
+        $this->assertEquals(71, $roles[0]->country->id);
+        $this->assertEquals(71, $roles[1]->country->id);
+        $this->assertNull($roles[3]->country);
     }
 
     public function testLazyEagerLoading()
@@ -68,7 +67,7 @@ class FirstPositionTest extends TestCase
 
     public function testLazyEagerLoadingWithObjects()
     {
-        if (DB::connection()->getDriverName() === 'sqlsrv') {
+        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 
@@ -88,7 +87,7 @@ class FirstPositionTest extends TestCase
 
     public function testExistenceQueryWithObjects()
     {
-        if (DB::connection()->getDriverName() === 'sqlsrv') {
+        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 
