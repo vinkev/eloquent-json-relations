@@ -15,13 +15,11 @@ relationships with JSON arrays.
 
 ## Compatibility
 
-| Database                                          | Laravel |
-|:--------------------------------------------------|:--------|
-| MySQL 5.7+                                        | 5.5.29+ |
-| MariaDB 10.2+                                     | 5.8+    |
-| PostgreSQL 9.3+                                   | 5.5.29+ |
-| [SQLite 3.18+](https://www.sqlite.org/json1.html) | 5.6.35+ |
-| SQL Server 2016+                                  | 5.6.25+ |
+- MySQL 5.7+
+- MariaDB 10.2+
+- PostgreSQL 9.3+
+- SQLite 3.38+
+- SQL Server 2016+
 
 ## Installation
 
@@ -35,6 +33,7 @@ Use this command if you are in PowerShell on Windows (e.g. in VS Code):
 
 | Laravel | Package |
 |:--------|:--------|
+| 11.x    | 1.11    |
 | 10.x    | 1.8     |
 | 9.x     | 1.7     |
 | 8.x     | 1.6     |
@@ -50,9 +49,10 @@ Use this command if you are in PowerShell on Windows (e.g. in VS Code):
 - [Many-To-Many Relationships](#many-to-many-relationships)
     - [Array of IDs](#array-of-ids)
     - [Array of Objects](#array-of-objects)
+    - [Composite Keys](#composite-keys)
     - [Query Performance](#query-performance)
 - [Has-Many-Through Relationships](#has-many-through-relationships)
-- [Concatenation](#concatenation)
+- [Deep Relationship Concatenation](#deep-relationship-concatenation)
 
 ### One-To-Many Relationships
 
@@ -224,6 +224,38 @@ $user->roles()->toggle([2 => ['active' => true], 3])->save();
 
 **Limitations:** On SQLite and SQL Server, these relationships only work partially.
 
+#### Composite Keys
+
+If multiple columns need to match, you can define a composite key.
+
+Pass an array of keys that starts with JSON key:
+
+```php
+class Employee extends Model
+{
+    public function tasks()
+    {
+        return $this->belongsToJson(
+            Task::class,
+            ['options->work_stream_ids', 'team_id'],
+            ['work_stream_id', 'team_id']
+        );
+    }
+}
+
+class Task extends Model
+{
+    public function employees()
+    {
+        return $this->hasManyJson(
+            Employee::class,
+            ['options->work_stream_ids', 'team_id'],
+            ['work_stream_id', 'team_id']
+        );
+    }
+}
+```
+
 #### Query Performance
 
 ##### MySQL
@@ -333,7 +365,7 @@ class Project extends Model
 }
 ```
 
-### Concatenation
+### Deep Relationship Concatenation
 
 You can include JSON relationships into deep relationships by concatenating them with other relationships
 using [staudenmeir/eloquent-has-many-deep](https://github.com/staudenmeir/eloquent-has-many-deep) (Laravel 9+).

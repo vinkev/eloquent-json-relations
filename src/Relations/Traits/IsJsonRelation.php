@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use RuntimeException;
 use Staudenmeir\EloquentJsonRelations\Grammars\JsonGrammar;
+use Staudenmeir\EloquentJsonRelations\Grammars\MariaDbGrammar;
 use Staudenmeir\EloquentJsonRelations\Grammars\MySqlGrammar;
 use Staudenmeir\EloquentJsonRelations\Grammars\PostgresGrammar;
 use Staudenmeir\EloquentJsonRelations\Grammars\SQLiteGrammar;
@@ -29,23 +30,6 @@ trait IsJsonRelation
      * @var string
      */
     protected $key;
-
-    /**
-     * Create a new JSON relationship instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        $args = func_get_args();
-
-        $foreignKey = explode('[]->', $args[2]);
-
-        $this->path = $foreignKey[0];
-        $this->key = $foreignKey[1] ?? null;
-
-        parent::__construct(...$args);
-    }
 
     /**
      * Hydrate the pivot relationship on the models.
@@ -165,6 +149,7 @@ trait IsJsonRelation
         return $query->getConnection()->withTablePrefix(
             match ($driver) {
                 'mysql' => new MySqlGrammar(),
+                'mariadb' => new MariaDbGrammar(),
                 'pgsql' => new PostgresGrammar(),
                 'sqlite' => new SQLiteGrammar(),
                 'sqlsrv' => new SqlServerGrammar(),
