@@ -9,24 +9,34 @@ use Staudenmeir\EloquentJsonRelations\IdeHelper\JsonRelationsHook;
 
 class IdeHelperServiceProvider extends ServiceProvider implements DeferrableProvider
 {
+    /**
+     * @var string
+     */
+    public const ModelsCommandAlias = __NAMESPACE__ . '\\' . ModelsCommand::class;
+
     public function register(): void
     {
-        /** @var \Illuminate\Contracts\Config\Repository $config */
+        /** @var \Illuminate\Config\Repository $config */
         $config = $this->app->get('config');
 
         $config->set(
             'ide-helper.model_hooks',
             array_merge(
                 [JsonRelationsHook::class],
-                $config->get('ide-helper.model_hooks', [])
+                $config->array('ide-helper.model_hooks', [])
             )
         );
+
+        $this->app->alias(ModelsCommand::class, static::ModelsCommandAlias);
     }
 
+    /**
+     * @return list<string>
+     */
     public function provides(): array
     {
         return [
-            ModelsCommand::class,
+            static::ModelsCommandAlias
         ];
     }
 }

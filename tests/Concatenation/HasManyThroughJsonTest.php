@@ -42,7 +42,8 @@ class HasManyThroughJsonTest extends TestCase
 
     public function testLazyLoadingWithReverseRelationshipAndObjects()
     {
-        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
+        // @see https://github.com/laravel/framework/pull/57417
+        if (in_array($this->connection, ['mariadb', 'sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 
@@ -64,12 +65,12 @@ class HasManyThroughJsonTest extends TestCase
 
     public function testEmptyLazyLoadingWithReverseRelationship()
     {
-        DB::enableQueryLog();
+        DB::connection()->enableQueryLog();
 
         $roles = (new Project())->roles;
 
         $this->assertInstanceOf(Collection::class, $roles);
-        $this->assertEmpty(DB::getQueryLog());
+        $this->assertEmpty(DB::connection()->getQueryLog());
     }
 
     public function testEagerLoading()
@@ -111,7 +112,8 @@ class HasManyThroughJsonTest extends TestCase
 
     public function testEagerLoadingWithReverseRelationshipAndObjects()
     {
-        if (in_array($this->connection, ['sqlite', 'sqlsrv'])) {
+        // @see https://github.com/laravel/framework/pull/57417
+        if (in_array($this->connection, ['mariadb', 'sqlite', 'sqlsrv'])) {
             $this->markTestSkipped();
         }
 

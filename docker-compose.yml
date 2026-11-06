@@ -1,14 +1,22 @@
 services:
-  php8.2:
-    image: ghcr.io/staudenmeir/php:8.2
+  php8.3:
+    image: ghcr.io/staudenmeir/php:8.3
     working_dir: /var/www/html
     networks:
       - test
     volumes:
       - .:/var/www/html:delegated
       - .docker/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
-  php8.3:
-    image: ghcr.io/staudenmeir/php:8.3
+  php8.4:
+    image: ghcr.io/staudenmeir/php:8.4
+    working_dir: /var/www/html
+    networks:
+      - test
+    volumes:
+      - .:/var/www/html:delegated
+      - .docker/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+  php8.5:
+    image: ghcr.io/staudenmeir/php:8.5
     working_dir: /var/www/html
     networks:
       - test
@@ -43,12 +51,12 @@ services:
     networks:
       - test
   sqlsrv:
-    image: 'mcr.microsoft.com/mssql/server:2019-latest'
+    image: 'mcr.microsoft.com/mssql/server:2022-latest'
     environment:
       ACCEPT_EULA: Y
       SA_PASSWORD: Password!
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${SA_PASSWORD}" -Q "SELECT 1" -b -o /dev/null
+      test: /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$${SA_PASSWORD}" -Q "SELECT 1" -b -o /dev/null
       interval: 5s
       timeout: 3s
       retries: 10

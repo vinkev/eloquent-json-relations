@@ -10,7 +10,7 @@ trait CompilesMySqlJsonQueries
     /**
      * Compile a "JSON array" statement into SQL.
      *
-     * @param string $column
+     * @param string|\Illuminate\Database\Query\Expression<*> $column
      * @return string
      */
     public function compileJsonArray($column)
@@ -51,6 +51,8 @@ trait CompilesMySqlJsonQueries
      */
     public function supportsMemberOf(ConnectionInterface $connection): bool
     {
+        /** @var \Illuminate\Database\MySqlConnection $connection */
+
         if ($connection->isMaria()) {
             return false;
         }
@@ -69,6 +71,8 @@ trait CompilesMySqlJsonQueries
     {
         $columnWithKey = $objectKey ? $column . (str_contains($column, '->') ? '[*]' : '') . "->$objectKey" : $column;
 
+        /** @var string $field */
+        /** @var string $path */
         [$field, $path] = $this->wrapJsonFieldAndPath($columnWithKey);
 
         if ($objectKey && !str_contains($column, '->')) {
@@ -88,7 +92,7 @@ trait CompilesMySqlJsonQueries
      * Prepare the bindings for a "member of" statement.
      *
      * @param mixed $value
-     * @return array
+     * @return list<mixed>
      */
     public function prepareBindingsForMemberOf(mixed $value): array
     {

@@ -9,16 +9,18 @@
         }
     ],
     "require": {
-        "php": "^8.2",
-        "illuminate/database": "^11.0",
-        "staudenmeir/eloquent-has-many-deep-contracts": "^1.2"
+        "php": "^8.3",
+        "illuminate/database": "^13.0",
+        "staudenmeir/eloquent-has-many-deep-contracts": "^1.4"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.0",
-        "orchestra/testbench": "^9.0",
-        "phpstan/phpstan": "^1.10",
-        "phpunit/phpunit": "^11.0",
-        "staudenmeir/eloquent-has-many-deep": "^1.20"
+        "larastan/larastan": "^3.0",
+        "laravel/framework": "^13.0",
+        "mockery/mockery": "^1.5.1",
+        "orchestra/testbench-core": "^11.0",
+        "phpunit/phpunit": "^12.5",
+        "staudenmeir/eloquent-has-many-deep": "^1.22"
     },
     "autoload": {
         "psr-4": {

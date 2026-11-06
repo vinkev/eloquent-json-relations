@@ -1,7 +1,4 @@
 parameters:
-    level: 0
+    level: 10
     paths:
         - src
-        - tests
-    ignoreErrors:
-        - '#Unsafe usage of new static\(\).#'

@@ -1,11 +1,11 @@
 # Eloquent JSON Relations
 
-[![CI](https://github.com/staudenmeir/eloquent-json-relations/actions/workflows/ci.yml/badge.svg)](https://github.com/staudenmeir/eloquent-json-relations/actions/workflows/ci.yml)
+[![CI](https://github.com/staudenmeir/eloquent-json-relations/actions/workflows/ci.yml/badge.svg)](https://github.com/staudenmeir/eloquent-json-relations/actions/workflows/ci.yml?query=branch%3Amain)
 [![Code Coverage](https://codecov.io/gh/staudenmeir/eloquent-json-relations/graph/badge.svg?token=T41IX53I5U)](https://codecov.io/gh/staudenmeir/eloquent-json-relations)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/staudenmeir/eloquent-json-relations/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/staudenmeir/eloquent-json-relations/?branch=master)
+[![PHPStan](https://img.shields.io/badge/PHPStan-level%2010-brightgreen.svg?style=flat)](https://github.com/staudenmeir/eloquent-json-relations/actions/workflows/static-analysis.yml?query=branch%3Amain)
 [![Latest Stable Version](https://poser.pugx.org/staudenmeir/eloquent-json-relations/v/stable)](https://packagist.org/packages/staudenmeir/eloquent-json-relations)
 [![Total Downloads](https://poser.pugx.org/staudenmeir/eloquent-json-relations/downloads)](https://packagist.org/packages/staudenmeir/eloquent-json-relations/stats)
-[![License](https://poser.pugx.org/staudenmeir/eloquent-json-relations/license)](https://github.com/staudenmeir/eloquent-json-relations/blob/master/LICENSE)
+[![License](https://poser.pugx.org/staudenmeir/eloquent-json-relations/license)](https://github.com/staudenmeir/eloquent-json-relations/blob/main/LICENSE)
 
 This Laravel Eloquent extension adds support for JSON foreign keys to `BelongsTo`, `HasOne`, `HasMany`, `HasOneThrough`
 , `HasManyThrough`, `MorphTo`, `MorphOne` and `MorphMany` relationships.
@@ -33,6 +33,8 @@ Use this command if you are in PowerShell on Windows (e.g. in VS Code):
 
 | Laravel | Package |
 |:--------|:--------|
+| 13.x    | 1.15    |
+| 12.x    | 1.14    |
 | 11.x    | 1.11    |
 | 10.x    | 1.8     |
 | 9.x     | 1.7     |
@@ -49,6 +51,7 @@ Use this command if you are in PowerShell on Windows (e.g. in VS Code):
 - [Many-To-Many Relationships](#many-to-many-relationships)
     - [Array of IDs](#array-of-ids)
     - [Array of Objects](#array-of-objects)
+    - [HasOneJson](#hasonejson)
     - [Composite Keys](#composite-keys)
     - [Query Performance](#query-performance)
 - [Has-Many-Through Relationships](#has-many-through-relationships)
@@ -89,8 +92,8 @@ Remember to use the `HasJsonRelationships` trait in both the parent and the rela
 
 #### Referential Integrity
 
-On [MySQL](https://dev.mysql.com/doc/refman/en/create-table-foreign-keys.html)
-, [MariaDB](https://mariadb.com/kb/en/library/foreign-keys/)
+On [MySQL](https://dev.mysql.com/doc/refman/en/create-table-foreign-keys.html),
+[MariaDB](https://mariadb.com/kb/en/library/foreign-keys/),
 and [SQL Server](https://docs.microsoft.com/en-us/sql/relational-databases/tables/specify-computed-columns-in-a-table)
 you can still ensure referential integrity with foreign keys on generated/computed columns.
 
@@ -106,7 +109,7 @@ Schema::create('users', function (Blueprint $table) {
 });
 ```
 
-Laravel migrations (5.7.25+) also support this feature on SQL Server:
+Laravel migrations also support this feature on SQL Server:
 
 ```php
 Schema::create('users', function (Blueprint $table) {
@@ -118,9 +121,6 @@ Schema::create('users', function (Blueprint $table) {
     $table->foreign('locale_id')->references('id')->on('locales');
 });
 ```
-
-There is a [workaround](https://github.com/staudenmeir/eloquent-json-relations/tree/1.1#referential-integrity) for older
-versions of Laravel.
 
 ### Many-To-Many Relationships
 
@@ -144,7 +144,7 @@ class User extends Model
        'options' => 'json',
     ];
     
-    public function roles()
+    public function roles(): \Staudenmeir\EloquentJsonRelations\Relations\BelongsToJson
     {
         return $this->belongsToJson(Role::class, 'options->role_ids');
     }
@@ -154,9 +154,9 @@ class Role extends Model
 {
     use \Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 
-    public function users()
+    public function users(): \Staudenmeir\EloquentJsonRelations\Relations\HasManyJson
     {
-       return $this->hasManyJson(User::class, 'options->role_ids');
+        return $this->hasManyJson(User::class, 'options->role_ids');
     }
 }
 ```
@@ -187,7 +187,7 @@ class User extends Model
        'options' => 'json',
     ];
     
-    public function roles()
+    public function roles(): \Staudenmeir\EloquentJsonRelations\Relations\BelongsToJson
     {
         return $this->belongsToJson(Role::class, 'options->roles[]->role_id');
     }
@@ -197,9 +197,9 @@ class Role extends Model
 {
     use \Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 
-    public function users()
+    public function users(): \Staudenmeir\EloquentJsonRelations\Relations\HasManyJson
     {
-       return $this->hasManyJson(User::class, 'options->roles[]->role_id');
+        return $this->hasManyJson(User::class, 'options->roles[]->role_id');
     }
 }
 ```
@@ -224,6 +224,23 @@ $user->roles()->toggle([2 => ['active' => true], 3])->save();
 
 **Limitations:** On SQLite and SQL Server, these relationships only work partially.
 
+#### HasOneJson
+
+Define a `HasOneJson` relationship if you only want to retrieve a single related instance:
+
+```php
+class Role extends Model
+{
+use \Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
+
+    public function latestUser(): \Staudenmeir\EloquentJsonRelations\Relations\HasOneJson
+    {
+        return $this->hasOneJson(User::class, 'options->roles[]->role_id')
+            ->latest();
+    }
+}
+```
+
 #### Composite Keys
 
 If multiple columns need to match, you can define a composite key.
@@ -233,7 +250,7 @@ Pass an array of keys that starts with JSON key:
 ```php
 class Employee extends Model
 {
-    public function tasks()
+    public function tasks(): \Staudenmeir\EloquentJsonRelations\Relations\BelongsToJson
     {
         return $this->belongsToJson(
             Task::class,
@@ -245,7 +262,7 @@ class Employee extends Model
 
 class Task extends Model
 {
-    public function employees()
+    public function employees(): \Staudenmeir\EloquentJsonRelations\Relations\HasManyJson
     {
         return $this->hasManyJson(
             Employee::class,
@@ -385,7 +402,7 @@ class User extends Model
     use \Staudenmeir\EloquentHasManyDeep\HasRelationships;
     use \Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 
-    public function permissions()
+    public function permissions(): \Staudenmeir\EloquentHasManyDeep\HasManyDeep
     {
         return $this->hasManyDeepFromRelations(
             $this->roles(),
@@ -393,7 +410,7 @@ class User extends Model
         );
     }
     
-    public function roles()
+    public function roles(): \Staudenmeir\EloquentJsonRelations\Relations\BelongsToJson
     {
         return $this->belongsToJson(Role::class, 'options->role_ids');
     }

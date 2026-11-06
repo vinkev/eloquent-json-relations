@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
 use ReflectionClass;
 use ReflectionMethod;
+use ReflectionNamedType;
 use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 use Staudenmeir\EloquentJsonRelations\Relations\BelongsToJson;
 use Staudenmeir\EloquentJsonRelations\Relations\HasManyJson;
-use Throwable;
+use Staudenmeir\EloquentJsonRelations\Relations\HasOneJson;
 
 class JsonRelationsHook implements ModelHookInterface
 {
@@ -33,18 +34,19 @@ class JsonRelationsHook implements ModelHookInterface
                 continue;
             }
 
-            try {
+            if ($method->getReturnType() instanceof ReflectionNamedType
+                && in_array($method->getReturnType()->getName(), [BelongsToJson::class, HasManyJson::class, HasOneJson::class], true)) {
+                /** @var \Illuminate\Database\Eloquent\Relations\Relation<*, *, *> $relationship */
                 $relationship = $method->invoke($model);
-            } catch (Throwable) { // @codeCoverageIgnore
-                continue; // @codeCoverageIgnore
-            }
 
-            if ($relationship instanceof BelongsToJson || $relationship instanceof HasManyJson) {
                 $this->addRelationship($command, $method, $relationship);
             }
         }
     }
 
+    /**
+     * @param \Illuminate\Database\Eloquent\Relations\Relation<*, *, *> $relationship
+     */
     protected function addRelationship(ModelsCommand $command, ReflectionMethod $method, Relation $relationship): void
     {
         $type = '\\' . Collection::class . '|\\' . $relationship->getRelated()::class . '[]';
