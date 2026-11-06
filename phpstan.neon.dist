@@ -5,3 +5,4 @@ parameters:
         - tests
     ignoreErrors:
         - '#Unsafe usage of new static\(\).#'
+        - '#^Class MongoDB\\Laravel\\Eloquent\\Model not found\.$#'

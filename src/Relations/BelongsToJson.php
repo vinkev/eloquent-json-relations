@@ -227,7 +227,7 @@ class BelongsToJson extends BelongsTo implements ConcatenableRelation
     /** @inheritDoc */
     public function getRelationExistenceQueryForSelfRelation(Builder $query, Builder $parentQuery, $columns = ['*'])
     {
-        $query->from($query->getModel()->getTable() . ' as ' . $hash = $this->getRelationCountHash());
+        $query->from($query->getModel()->getTable().' as '.$hash = $this->getRelationCountHash());
 
         $query->getModel()->setTable($hash);
 
@@ -332,7 +332,7 @@ class BelongsToJson extends BelongsTo implements ConcatenableRelation
     }
 
     /**
-     * @param $related
+     * @param TRelatedModel $related
      *
      * @return bool
      */
