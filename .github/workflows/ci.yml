@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
 
 jobs:
@@ -18,48 +18,7 @@ jobs:
         include:
           - php: 8.5
             release: stable
-<<<<<<< HEAD
-            coverage: xdebug
-          - database: sqlsrv
-            pdo_suffix: -5.9.0preview1
-
-    services:
-      mysql:
-        image: mysql:latest
-        env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: test
-        ports:
-          - 3306
-      mariadb:
-        image: mariadb:latest
-        env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: test
-        ports:
-          - 3306
-      pgsql:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: test
-        ports:
-          - 5432/tcp
-      sqlsrv:
-        image: mcr.microsoft.com/mssql/server:2019-latest
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: Password!
-        options: >-
-          --name sqlsrv
-          --health-cmd "echo quit | /opt/mssql-tools/bin/sqlcmd -S 127.0.0.1 -l 1 -U sa -P Password!"
-        ports:
-          - 1433
-=======
             coverage: true
->>>>>>> fc9dc9c3bb6803b562bb82bc47397ddeaa737846
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
